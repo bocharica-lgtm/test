@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Очень сложный маршрут · прототип</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=112747070', 'ym');
+
+    ym(112747070, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/112747070" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+
+
+
+<style>
+  :root{ color-scheme:dark; }
+  *{ -webkit-tap-highlight-color:transparent; box-sizing:border-box; }
+  body{
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(900px 620px at 50% -6%, #14213c 0%, #05080e 62%);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+
+  /* ===== тонкий светлый контур телефона ===== */
+  .phone{
+    position:relative; width:390px; max-width:100%;
+    height:min(832px, 100dvh - 32px);
+    border-radius:46px; border:1.5px solid rgba(203,213,225,.36);
+    background:#070b13; overflow:hidden;
+    box-shadow:0 0 70px rgba(37,99,235,.10), inset 0 0 0 1px rgba(255,255,255,.035);
+  }
+  .phone::before{ content:""; position:absolute; top:11px; left:50%; transform:translateX(-50%);
+    width:86px; height:5px; border-radius:99px; background:rgba(203,213,225,.22); z-index:90; }
+  .phone::after{ content:""; position:absolute; bottom:7px; left:50%; transform:translateX(-50%);
+    width:112px; height:4px; border-radius:99px; background:rgba(203,213,225,.26); z-index:90; }
+  .side{ position:absolute; background:rgba(203,213,225,.3); border-radius:2px; }
+  .s1{ left:-2.5px; top:150px; width:2.5px; height:26px; }
+  .s2{ left:-2.5px; top:186px; width:2.5px; height:52px; }
+  .s3{ right:-2.5px; top:172px; width:2.5px; height:72px; }
+
+  .screen{ position:absolute; inset:0; overflow-y:auto; overflow-x:hidden; scrollbar-width:none;
+    padding-bottom:36px; transition:transform .36s cubic-bezier(.4,0,.2,1), opacity .36s; }
+  .screen::-webkit-scrollbar{ display:none; }
+  .off-r{ transform:translateX(100%); opacity:0; pointer-events:none; }
+
+  /* ===== строка маршрута ===== */
+  .leg-row{ transition:opacity .25s, transform .25s, border-color .3s; }
+  .leg-row.entering{ opacity:0; transform:translateY(-12px) scale(.98); }
+  .leg-row.leaving{ opacity:0; transform:translateX(26px); }
+  .leg-row.flash{ animation:flash .6s ease; }
+  @keyframes flash{ 0%,100%{border-color:#222b3d; box-shadow:none;} 35%{border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.16);} }
+
+  .row-actions{ opacity:0; transform:translateY(-3px); height:0; margin-top:0; overflow:hidden; pointer-events:none;
+    transition:opacity .2s, transform .2s, height .22s, margin-top .22s; }
+  .leg-row:hover .row-actions, .leg-row:focus-within .row-actions, .leg-row.touched .row-actions{
+    opacity:1; transform:none; height:28px; margin-top:5px; pointer-events:auto; }
+
+  .word{ cursor:pointer; border-bottom:1.5px dotted rgba(148,163,184,.42); padding-bottom:1px; transition:color .15s,border-color .15s; }
+  .word:hover{ color:#93c5fd; border-color:#60a5fa; }
+  .word.empty{ color:#5b6579; }
+
+  .suggest{ max-height:250px; overflow-y:auto; scrollbar-width:none; }
+  .suggest::-webkit-scrollbar{ display:none; }
+
+  /* ===== календарь ===== */
+  .cal-day{ border-radius:11px; height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    line-height:1; cursor:pointer; user-select:none; transition:background .15s; }
+  .cal-day:not(.disabled):hover{ background:#26304a; }
+  .cal-day .d{ font-size:13px; }
+  .cal-day .p{ font-size:8.4px; margin-top:3px; color:#6d7893; letter-spacing:-.25px; white-space:nowrap; }
+  .cal-day.weekend .d{ color:#60a5fa; font-weight:600; }
+  .cal-day.selected .d,.cal-day.selected .p{ color:#fff !important; }
+  /* дата из маршрута — синяя заливка */
+  .cal-day.inroute{ background:#2563eb; }
+  /* даты между купленными билетами — светло-голубая */
+  .cal-day.between{ background:#1e4d8f; }
+  .cal-day.between .d{ color:#cfe3ff; }
+  .cal-day.between .p{ color:#9dc2f0; }
+  .cal-day.cheap .p{ color:#34d399; font-weight:800; }
+  .cal-day.selected.cheap .p, .cal-day.inroute.cheap .p{ color:#a7f3d0 !important; }
+  .cal-day.today:not(.selected):not(.inroute){ box-shadow:inset 0 0 0 1.5px #3b82f6; }
+  .cal-day.disabled{ color:#3d4456; cursor:not-allowed; }
+  .cal-day.disabled .p{ color:#373e4f; }
+
+  .fade-in{ animation:fadeIn .22s ease-out; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  .swap-anim{ animation:spin .5s cubic-bezier(.4,0,.2,1); }
+  @keyframes spin{ 50%{transform:rotate(180deg) scale(1.22);} 100%{transform:rotate(360deg);} }
+  .plus-anim{ animation:plusPop .45s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes plusPop{ 0%{transform:scale(.7) rotate(-90deg);} 60%{transform:scale(1.22) rotate(8deg);} 100%{transform:scale(1) rotate(0);} }
+  .money-bump{ animation:bump .35s ease; }
+  @keyframes bump{ 0%{transform:scale(1);} 40%{transform:scale(1.045);} 100%{transform:scale(1);} }
+
+  /* ===== финальный экран: самолёт разворачивается задом ===== */
+  .scene{ position:relative; width:300px; height:230px; }
+  .plane{
+    position:absolute; top:64px; left:20px; font-size:74px; line-height:1;
+    filter:drop-shadow(0 12px 26px rgba(59,130,246,.55));
+    animation:
+      planeIn 2.3s cubic-bezier(.3,.8,.3,1) forwards,
+      planeIdle 3.2s ease-in-out 2.3s infinite alternate;
+  }
+  @keyframes planeIn{
+    0%  { transform:translateX(-170px) translateY(30px) rotate(14deg) scale(.7); opacity:0; }
+    35% { opacity:1; }
+    100%{ transform:translateX(70px) translateY(0) rotate(-4deg) scale(1); opacity:1; }
+  }
+  @keyframes planeIdle{
+    0%  { transform:translateX(70px) translateY(-6px) rotate(-9deg) scaleX(-1); }
+    100%{ transform:translateX(52px) translateY(8px) rotate(3deg) scaleX(-1); }
+  }
+  .butt{
+    position:absolute; top:86px; left:236px; font-size:42px; line-height:1; opacity:0;
+    filter:drop-shadow(0 6px 16px rgba(244,114,182,.4));
+    animation:buttIn .5s cubic-bezier(.3,1.5,.5,1) 2.05s forwards, buttWiggle 1.1s ease-in-out 2.5s infinite;
+  }
+  @keyframes buttIn{ from{ opacity:0; transform:translate(20px,-10px) scale(.4);} to{ opacity:1; transform:none; } }
+  @keyframes buttWiggle{ 0%,100%{ transform:rotate(-6deg) scale(1);} 50%{ transform:rotate(8deg) scale(1.08);} }
+  .puff{ position:absolute; font-size:22px; opacity:0; animation:puff 2.4s ease-out infinite; }
+  @keyframes puff{
+    0%  { opacity:0; transform:translate(0,0) scale(.4) rotate(0); }
+    12% { opacity:1; }
+    75% { opacity:.85; }
+    100%{ opacity:0; transform:translate(var(--dx), var(--dy)) scale(1.4) rotate(var(--rot)); }
+  }
+  .txt-in{ animation:txtIn .7s cubic-bezier(.2,.9,.2,1) both; }
+  @keyframes txtIn{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;} }
+
+  .toast{ position:absolute; left:16px; right:16px; bottom:44px; z-index:95; transition:opacity .25s, transform .25s; }
+  .toast.hide{ opacity:0; transform:translateY(14px); pointer-events:none; }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <div class="side s1"></div><div class="side s2"></div><div class="side s3"></div>
+
+  <!-- ============ ЭКРАН 1 · ПОИСК ============ -->
+  <section id="scrSearch" class="screen">
+    <div class="pt-11 px-3.5">
+
+      <!-- шапка -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-[13px] bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M2 16l20-6-3-2-6 2-7-6-2 1 5 6-5 2-2-1-1 1 3 3z" fill="#fff"/></svg>
+        </div>
+        <div class="leading-tight flex-1 min-w-0">
+          <h1 class="text-[15.5px] font-bold text-slate-100">Очень сложный маршрут</h1>
+          <p class="text-[10.5px] text-slate-500">Один билет на все перелёты</p>
+        </div>
+      </div>
+
+      <!-- КРУПНАЯ СУММА -->
+      <div class="mt-4 rounded-3xl border border-[#222b3d] bg-gradient-to-b from-[#111a2b] to-[#0c1220] px-4 py-3.5 text-center">
+        <div class="text-[10px] uppercase tracking-[.14em] text-slate-500 font-semibold">Общая стоимость </div>
+        <div id="total" class="mt-1 text-[36px] leading-none font-extrabold text-white tracking-tight">от 0 ₽</div>
+        <div id="totalNote" class="mt-1.5 text-[10px] text-slate-500">Цены для понимания </div>
+      </div>
+
+      <!-- строки маршрута -->
+      <div id="legs" class="flex flex-col gap-2.5 mt-3"></div>
+
+      <!-- главная кнопка добавить -->
+      <button id="addBtn" disabled class="mt-3 w-full flex items-center justify-center gap-2 rounded-2xl border border-dashed border-[#33405c] text-blue-400 py-3 text-[12.5px] font-medium transition active:scale-[.98]">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <span id="addLabel">Добавить направление</span>
+      </button>
+
+      <button id="searchBtn" class="mt-3 w-full rounded-2xl bg-blue-600 active:bg-blue-700 py-3.5 font-semibold text-[14.5px] text-white shadow-lg shadow-blue-600/25 transition active:scale-[.99]">
+        Найти билеты
+      </button>
+
+      <p class="mt-3 px-1 text-[10px] text-slate-500 leading-relaxed flex gap-1.5">
+        <svg class="shrink-0 mt-px" width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v5m0 3h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Это прототип, стили и цвета будут изменены, главное нфункционал.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ЭКРАН 2 · СПАСИБО ============ -->
+  <section id="scrThanks" class="screen off-r">
+    <div class="relative min-h-full px-5 flex flex-col items-center justify-center text-center">
+      <button data-back class="absolute top-12 left-4 w-9 h-9 rounded-full bg-[#161d2b]/90 border border-[#263148] flex items-center justify-center text-slate-300 active:scale-95 transition z-30 backdrop-blur">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <div class="scene">
+        <div class="plane">✈️</div>
+        <div class="butt">🍑</div>
+        <!-- «пук» сердечками и поцелуями -->
+        <span class="puff" style="left:236px; top:100px; --dx:-64px; --dy:64px;  --rot:-24deg; animation-delay:2.4s">💜</span>
+        <span class="puff" style="left:244px; top:106px; --dx:-34px; --dy:86px;  --rot:18deg;  animation-delay:2.9s">💋</span>
+        <span class="puff" style="left:230px; top:96px;  --dx:-88px; --dy:44px;  --rot:-12deg; animation-delay:3.4s">💖</span>
+        <span class="puff" style="left:246px; top:110px; --dx:-46px; --dy:98px;  --rot:30deg;  animation-delay:3.9s">💋</span>
+        <span class="puff" style="left:238px; top:102px; --dx:-14px; --dy:104px; --rot:8deg;   animation-delay:4.4s">💙</span>
+        <span class="puff" style="left:242px; top:104px; --dx:-72px; --dy:78px;  --rot:-30deg; animation-delay:4.9s">🩷</span>
+        <span class="puff" style="left:234px; top:98px;  --dx:-52px; --dy:56px;  --rot:24deg;  animation-delay:5.4s">✨</span>
+        <span class="puff" style="left:240px; top:108px; --dx:-28px; --dy:92px;  --rot:-18deg; animation-delay:5.9s">💋</span>
+      </div>
+
+      <h2 class="txt-in mt-2 text-[26px] font-extrabold text-white leading-tight">Спасибо,<br>мой сердечный друг</h2>
+    </div>
+  </section>
+</div>
+
+<!-- toast -->
+<div id="toast" class="toast hide">
+  <div class="mx-auto w-fit max-w-full bg-[#1c2434] border border-[#2f3a52] text-slate-200 text-[11.5px] px-3.5 py-2 rounded-full shadow-2xl flex items-center gap-2">
+    <span id="toastIcon">✓</span><span id="toastText"></span>
+  </div>
+</div>
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=112747070', 'ym');
+
+    ym(112747070, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/112747070" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+
+
+
+<script>
+/* ================= справочник: 24 направления ================= */
+const PLACES = [
+  {city:"Москва",country:"Россия",code:"SVO",airport:"Шереметьево"},
+  {city:"Москва",country:"Россия",code:"DME",airport:"Домодедово"},
+  {city:"Санкт-Петербург",country:"Россия",code:"LED",airport:"Пулково"},
+  {city:"Сочи",country:"Россия",code:"AER",airport:"Адлер"},
+  {city:"Казань",country:"Россия",code:"KZN",airport:"Казань"},
+  {city:"Стамбул",country:"Турция",code:"IST",airport:"Istanbul Airport"},
+  {city:"Анталья",country:"Турция",code:"AYT",airport:"Antalya"},
+  {city:"Дубай",country:"ОАЭ",code:"DXB",airport:"Dubai Intl"},
+  {city:"Абу-Даби",country:"ОАЭ",code:"AUH",airport:"Zayed Intl"},
+  {city:"Париж",country:"Франция",code:"CDG",airport:"Charles de Gaulle"},
+  {city:"Лондон",country:"Великобритания",code:"LHR",airport:"Heathrow"},
+  {city:"Берлин",country:"Германия",code:"BER",airport:"Brandenburg"},
+  {city:"Рим",country:"Италия",code:"FCO",airport:"Fiumicino"},
+  {city:"Барселона",country:"Испания",code:"BCN",airport:"El Prat"},
+  {city:"Прага",country:"Чехия",code:"PRG",airport:"Václav Havel"},
+  {city:"Нью-Йорк",country:"США",code:"JFK",airport:"John F. Kennedy"},
+  {city:"Лос-Анджелес",country:"США",code:"LAX",airport:"Los Angeles Intl"},
+  {city:"Токио",country:"Япония",code:"HND",airport:"Haneda"},
+  {city:"Сеул",country:"Южная Корея",code:"ICN",airport:"Incheon"},
+  {city:"Бангкок",country:"Таиланд",code:"BKK",airport:"Suvarnabhumi"},
+  {city:"Пхукет",country:"Таиланд",code:"HKT",airport:"Phuket Intl"},
+  {city:"Сингапур",country:"Сингапур",code:"SIN",airport:"Changi"},
+  {city:"Ереван",country:"Армения",code:"EVN",airport:"Звартноц"},
+  {city:"Алматы",country:"Казахстан",code:"ALA",airport:"Almaty Intl"},
+];
+const MAX_LEGS = 5;
+const MONTHS   = ["январь","февраль","март","апрель","май","июнь","июль","август","сентябрь","октябрь","ноябрь","декабрь"];
+const MONTHS_S = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+const DOW_S    = ["вс","пн","вт","ср","чт","пт","сб"];
+const money = n => new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽';
+
+const CAL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+const ICO_SWAP = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M7 4v13M7 4L4 7m3-3l3 3M17 20V7m0 13l3-3m-3 3l-3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICO_DEL  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m2 0l-.7 12a2 2 0 01-2 1.9H9.7a2 2 0 01-2-1.9L7 7M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const ICO_PLUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+const legsEl = document.getElementById('legs');
+const addBtn = document.getElementById('addBtn'), addLabel = document.getElementById('addLabel');
+const today = new Date(); today.setHours(0,0,0,0);
+let toastT;
+
+function toast(text, icon='✓'){
+  document.getElementById('toastText').textContent = text;
+  document.getElementById('toastIcon').textContent = icon;
+  const t = document.getElementById('toast');
+  t.classList.remove('hide'); clearTimeout(toastT);
+  toastT = setTimeout(()=>t.classList.add('hide'), 2100);
+}
+
+/* ================= цены ================= */
+const pCache = new Map();
+function priceFor(y,m,d){
+  const k = y+'-'+m+'-'+d;
+  if (pCache.has(k)) return pCache.get(k);
+  let h = 0; for (let i=0;i<k.length;i++) h = (h*31 + k.charCodeAt(i)) % 99991;
+  const p = 5200 + (h % 13800) + (d % 3) * 610;
+  pCache.set(k, p); return p;
+}
+function estimate(fromFull, toFull){
+  let h = 0; const s = (fromFull||'') + (toFull||'') || 'x';
+  for (let i=0;i<s.length;i++) h = (h*33 + s.charCodeAt(i)) % 99991;
+  return 9400 + (h % 24000);
+}
+const val = (r,f) => r.querySelector(`[data-field="${f}"]`).dataset.full;
+const filled = r => val(r,'from') && val(r,'to');
+
+/* общая сумма «от 00 000 ₽» */
+function recalcTotal(){
+  const rows = [...legsEl.children];
+  let sum = 0, done = 0;
+  rows.forEach(r => {
+    if (!filled(r)) return;
+    done++;
+    sum += r.dataset.price ? +r.dataset.price : estimate(val(r,'from'), val(r,'to'));
+  });
+  const el = document.getElementById('total');
+  const next = done ? 'от ' + money(sum) : 'от 0 ₽';
+  if (el.textContent !== next){ el.textContent = next; el.classList.remove('money-bump'); void el.offsetWidth; el.classList.add('money-bump'); }
+  document.getElementById('totalNote').textContent = done
+    ? `${done} ${done===1?'сегмент':done<5?'сегмента':'сегментов'} · за 1 пассажира · багаж включён`
+    : 'Заполните маршрут, чтобы увидеть цену';
+}
+
+/* ================= строка маршрута ================= */
+function createLeg(){
+  const row = document.createElement('div');
+  row.className = 'leg-row entering relative bg-[#101724] border border-[#222b3d] rounded-2xl p-2.5';
+  row.innerHTML = `
+    <div class="flex gap-2">
+      <!-- строка «Откуда — Куда» -->
+      <div class="flex-1 min-w-0 flex items-center gap-2 h-[52px] px-3.5 bg-[#1a2130] border border-[#2a3346] focus-within:border-blue-500/70 rounded-xl transition">
+        <span class="word empty text-[12.5px] leading-none truncate" data-field="from" data-full="">Откуда</span>
+        <span class="text-slate-600 text-[12.5px] shrink-0">—</span>
+        <span class="word empty text-[12.5px] leading-none truncate ml-auto text-right" data-field="to" data-full="">Куда</span>
+      </div>
+      <!-- кнопка календаря в том же стиле -->
+      <button type="button" class="date-btn w-[92px] shrink-0 h-[52px] flex flex-col items-start justify-center gap-1 px-3 bg-[#1a2130] border border-[#2a3346] hover:border-blue-500/60 rounded-xl text-left text-slate-500 transition">
+        <span class="date-icon flex items-center">${CAL_ICON}</span>
+        <span class="date-label hidden text-[11.5px] leading-none text-slate-200 whitespace-nowrap"></span>
+        <span class="date-price text-[9.5px] leading-none text-slate-600"></span>
+      </button>
+    </div>
+
+    <!-- иконки снизу блока справа: ➕ добавить · 🔄 поменять · 🗑 удалить -->
+    <div class="row-actions flex items-center justify-end gap-1 pr-0.5">
+      <button type="button" class="plus-btn h-7 pl-1.5 pr-2 rounded-lg hover:bg-emerald-500/15 active:bg-emerald-500/25 text-emerald-400 flex items-center gap-1.5 text-[10.5px] font-semibold transition" title="Добавить направление под этой строкой">${ICO_PLUS}<span>добавить направление</span></button>
+      <span class="plus-divider mx-0.5 w-px h-4 bg-[#28324a]"></span>
+      <button type="button" class="swap-btn w-7 h-7 rounded-lg hover:bg-blue-500/15 active:bg-blue-500/25 text-blue-400 flex items-center justify-center transition" title="Поменять местами">${ICO_SWAP}</button>
+      <button type="button" class="del-btn w-7 h-7 rounded-lg hover:bg-red-500/15 active:bg-red-500/25 text-red-400 flex items-center justify-center transition" title="Удалить строку">${ICO_DEL}</button>
+    </div>
+
+    <!-- выпадающий список -->
+    <div class="suggest-panel hidden absolute left-2.5 right-2.5 top-[62px] z-40 bg-[#151c29] border border-[#2a3346] rounded-2xl shadow-2xl overflow-hidden fade-in">
+      <div class="flex items-center gap-2 px-3 h-11 border-b border-[#232c40]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#64748b" stroke-width="1.8"/><path d="M16.5 16.5L21 21" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <input type="text" class="suggest-input w-full bg-transparent outline-none text-[12.5px] text-slate-100 placeholder-slate-500" placeholder="Город, страна, аэропорт или код">
+      </div>
+      <div class="suggest py-1"></div>
+    </div>`;
+
+  row.addEventListener('pointerdown', () => {
+    document.querySelectorAll('.leg-row.touched').forEach(r => r !== row && r.classList.remove('touched'));
+    row.classList.add('touched');
+  });
+
+  /* кликабельные слова */
+  row.querySelectorAll('.word').forEach(w => w.addEventListener('click', e => { e.stopPropagation(); openSuggest(row, w.dataset.field); }));
+
+  /* 🗑 удалить */
+  row.querySelector('.del-btn').addEventListener('click', () => {
+    closePanels();
+    if (legsEl.children.length > 1){
+      row.classList.add('leaving');
+      setTimeout(()=>{ row.remove(); refresh(); toast('Направление удалено', '🗑'); }, 220);
+    } else {
+      row.querySelectorAll('.word').forEach(w => setWord(w, ''));
+      resetDateBtn(row);
+      refresh(); toast('Поля очищены', '↺');
+    }
+  });
+
+  /* 🔄 поменять местами */
+  row.querySelector('.swap-btn').addEventListener('click', e => {
+    const btn = e.currentTarget;
+    btn.classList.remove('swap-anim'); void btn.offsetWidth; btn.classList.add('swap-anim');
+    const rows = [...legsEl.children];
+    if (rows.length === 1){
+      swapRoute(row, row); pulse(row); recalcTotal();
+      toast('Точки маршрута поменялись местами', '🔄');
+    } else {
+      const i = rows.indexOf(row), other = rows[i+1] || rows[i-1];
+      swapRoute(row, other); pulse(row); pulse(other); recalcTotal();
+      toast('Сегменты поменялись — даты на месте', '🔄');
+    }
+  });
+
+  /* ➕ добавить направление ПОД этой строкой */
+  row.querySelector('.plus-btn').addEventListener('click', e => {
+    const ic = e.currentTarget.querySelector('svg');
+    ic.classList.remove('plus-anim'); void ic.offsetWidth; ic.classList.add('plus-anim');
+    insertBelow(row);
+  });
+
+  /* 📅 календарь */
+  row.querySelector('.date-btn').addEventListener('click', e => { e.stopPropagation(); closePanels(); openCalendar(row); });
+
+  legsEl.appendChild(row);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ row.classList.remove('entering'); refresh(); }));
+  return row;
+}
+
+function setWord(w, full){
+  w.dataset.full = full || '';
+  if (!full){ w.textContent = w.dataset.field === 'from' ? 'Откуда' : 'Куда'; w.classList.add('empty'); return; }
+  const p = PLACES.find(x => `${x.city}, ${x.country} · ${x.code}` === full);
+  w.classList.remove('empty');
+  w.textContent = p ? `${p.city} ${p.code}` : full;
+}
+function swapRoute(a, b){
+  const af=a.querySelector('[data-field="from"]'), at=a.querySelector('[data-field="to"]');
+  const bf=b.querySelector('[data-field="from"]'), bt=b.querySelector('[data-field="to"]');
+  const f=af.dataset.full, t=at.dataset.full;
+  setWord(af, bf.dataset.full); setWord(at, bt.dataset.full);
+  setWord(bf, f); setWord(bt, t);
+}
+function pulse(r){ r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); }
+
+/* --- доступность добавления: появляется после заполнения первой строки --- */
+function chainReady(){ return [...legsEl.children].some(filled); }
+
+function refresh(){
+  const rows = [...legsEl.children];
+  const ready = chainReady();
+  const left = MAX_LEGS - rows.length;
+
+  addBtn.disabled = !ready || left <= 0;
+  addBtn.classList.toggle('opacity-40', !ready || left <= 0);
+  addLabel.textContent = !ready ? 'Сначала заполните первое направление'
+    : left > 0 ? `Добавить направление · осталось ${left}` : 'Максимум 5 направлений';
+
+  /* плюс на всех строках, кроме последней; только когда цепочка заполнена */
+  rows.forEach((r, i) => {
+    const show = ready && i !== rows.length - 1;
+    r.querySelector('.plus-btn').classList.toggle('hidden', !show);
+    r.querySelector('.plus-divider').classList.toggle('hidden', !show);
+  });
+  recalcTotal();
+}
+
+/* вставка новой строки под указанной: from = её «Куда», to = «Откуда» нижнего блока */
+function insertBelow(anchor){
+  if (legsEl.children.length >= MAX_LEGS) return toast('Максимум 5 направлений', 'ℹ');
+  const from = val(anchor, 'to');
+  const below = anchor.nextElementSibling;
+  const to = below ? val(below, 'from') : '';
+
+  const row = createLeg();
+  legsEl.insertBefore(row, anchor.nextElementSibling === row ? row : anchor.nextElementSibling);
+  setWord(row.querySelector('[data-field="from"]'), from);
+  if (to) setWord(row.querySelector('[data-field="to"]'), to);
+  refresh();
+  toast('Направление добавлено под строкой', '➕');
+  setTimeout(()=>openSuggest(row, to ? 'from' : 'to'), 60);
+  return row;
+}
+
+/* нижняя кнопка: добавляем в конец, «Откуда» из прошлого сегмента */
+addBtn.addEventListener('click', () => {
+  if (legsEl.children.length >= MAX_LEGS) return toast('Максимум 5 направлений', 'ℹ');
+  if (!chainReady()) return toast('Сначала заполните первое направление', '⚠');
+  const last = legsEl.lastElementChild;
+  const from = val(last, 'to');
+  const row = createLeg();
+  if (from) setWord(row.querySelector('[data-field="from"]'), from);
+  refresh();
+  toast(from ? '«Откуда» взято из прошлого сегмента' : 'Строка добавлена', '✨');
+  setTimeout(()=>openSuggest(row, from ? 'to' : 'from'), 60);
+});
+
+/* ================= выпадающий список ================= */
+function closePanels(){ document.querySelectorAll('.suggest-panel').forEach(p => p.classList.add('hidden')); }
+function openSuggest(row, field){
+  closePanels();
+  const panel = row.querySelector('.suggest-panel');
+  const input = panel.querySelector('.suggest-input');
+  panel.dataset.field = field;
+  input.value = '';
+  input.placeholder = field === 'from' ? 'Откуда: город, страна, аэропорт' : 'Куда: город, страна, аэропорт';
+  renderList(panel.querySelector('.suggest'), '', field);
+  panel.classList.remove('hidden');
+  setTimeout(()=>input.focus(), 40);
+}
+function renderList(list, q){
+  const s = q.trim().toLowerCase();
+  const items = PLACES.filter(p => !s ||
+    p.city.toLowerCase().includes(s) || p.country.toLowerCase().includes(s) ||
+    p.code.toLowerCase().includes(s) || p.airport.toLowerCase().includes(s)).slice(0,8);
+  if (!items.length){ list.innerHTML = '<div class="px-3 py-4 text-center text-[11.5px] text-slate-500">Ничего не найдено</div>'; return; }
+  list.innerHTML = items.map(p => `
+    <button type="button" class="opt w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#212b40] active:bg-[#212b40] text-left transition"
+      data-full="${p.city}, ${p.country} · ${p.code}">
+      <span class="w-7 h-7 rounded-lg bg-[#1e2739] flex items-center justify-center shrink-0">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M2 16l20-6-3-2-6 2-7-6-2 1 5 6-5 2-2-1-1 1 3 3z" fill="#60a5fa"/></svg>
+      </span>
+      <span class="min-w-0 flex-1">
+        <span class="block text-[12.5px] text-slate-100 truncate">${p.city} <span class="text-slate-500">· ${p.country}</span></span>
+        <span class="block text-[10px] text-slate-500 truncate">${p.airport}</span>
+      </span>
+      <span class="shrink-0 text-[10px] font-bold text-blue-400 bg-blue-500/10 rounded-md px-1.5 py-1">${p.code}</span>
+    </button>`).join('');
+  list.querySelectorAll('.opt').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const row = b.closest('.leg-row');
+    setWord(row.querySelector(`[data-field="${b.closest('.suggest-panel').dataset.field}"]`), b.dataset.full);
+    closePanels(); refresh();
+  }));
+}
+document.addEventListener('input', e => {
+  if (!e.target.classList.contains('suggest-input')) return;
+  const panel = e.target.closest('.suggest-panel');
+  renderList(panel.querySelector('.suggest'), e.target.value);
+});
+
+/* ================= кнопка даты ================= */
+function applyDate(row, date, price, isCheapest){
+  row.dataset.date = date.toISOString();
+  row.dataset.price = price;
+  const btn = row.querySelector('.date-btn');
+  btn.classList.remove('text-slate-500');
+  btn.querySelector('.date-icon').classList.add('hidden');          // иконка исчезает
+  const lbl = btn.querySelector('.date-label');
+  lbl.classList.remove('hidden');
+  lbl.textContent = `${String(date.getDate()).padStart(2,'0')} ${MONTHS_S[date.getMonth()]}. ${DOW_S[date.getDay()]}`;
+  const pr = btn.querySelector('.date-price');                      // цена остаётся
+  pr.textContent = money(price);
+  pr.classList.remove('text-slate-600','text-emerald-400','text-slate-300');
+  pr.classList.add(isCheapest ? 'text-emerald-400' : 'text-slate-300');
+  refresh();
+}
+function resetDateBtn(row){
+  delete row.dataset.date; delete row.dataset.price;
+  const btn = row.querySelector('.date-btn');
+  btn.classList.add('text-slate-500');
+  btn.querySelector('.date-icon').classList.remove('hidden');
+  btn.querySelector('.date-label').classList.add('hidden');
+  const pr = btn.querySelector('.date-price');
+  pr.textContent = ''; pr.classList.remove('text-emerald-400','text-slate-300'); pr.classList.add('text-slate-600');
+  refresh();
+}
+
+/* ================= календарь ================= */
+const cal = document.createElement('div');
+cal.className = 'hidden absolute z-[70] left-3 right-3 top-[190px] bg-[#151c29] border border-[#2a3346] rounded-3xl shadow-2xl p-3.5 fade-in';
+cal.innerHTML = `
+  <div class="flex items-center justify-between mb-2.5">
+    <button id="calPrev" class="w-8 h-8 rounded-lg hover:bg-[#232b3d] flex items-center justify-center text-slate-300">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div id="calTitle" class="text-[13px] font-semibold text-slate-100 capitalize"></div>
+    <button id="calNext" class="w-8 h-8 rounded-lg hover:bg-[#232b3d] flex items-center justify-center text-slate-300">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <div class="grid grid-cols-7 gap-1 mb-1 text-center text-[9.5px] text-slate-500 font-medium">
+    <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div>
+    <div class="text-blue-400">Сб</div><div class="text-blue-400">Вс</div>
+  </div>
+  <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
+  <div class="flex items-center justify-center gap-3.5 mt-2.5 text-[9.5px] text-slate-500 flex-wrap">
+    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-400"></span>выходные</span>
+    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-blue-600"></span>даты маршрута</span>
+    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-[#1e4d8f]"></span>между датами</span>
+    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span>лучшая цена</span>
+  </div>`;
+document.getElementById('phone').appendChild(cal);
+
+let calRow = null, calView = new Date();
+
+/* все даты маршрута + диапазон между ними */
+function routeMarks(){
+  const ts = [...legsEl.children].filter(r => r.dataset.date).map(r => new Date(r.dataset.date).getTime());
+  const inRoute = new Set(ts);
+  let between = new Set();
+  if (ts.length > 1){
+    const mn = Math.min(...ts), mx = Math.max(...ts);
+    for (let t = mn; t <= mx; t += 86400000) if (!inRoute.has(t)) between.add(t);
+  }
+  return { inRoute, between };
+}
+
+function openCalendar(row){
+  calRow = row;
+  const base = row.dataset.date ? new Date(row.dataset.date) : today;
+  calView = new Date(base.getFullYear(), base.getMonth(), 1);
+  drawCal(); cal.classList.remove('hidden');
+}
+function drawCal(){
+  const y = calView.getFullYear(), m = calView.getMonth();
+  document.getElementById('calTitle').textContent = MONTHS[m] + ' ' + y;
+  const off = (new Date(y,m,1).getDay()+6)%7, dim = new Date(y,m+1,0).getDate();
+  const { inRoute, between } = routeMarks();
+  let min = Infinity, minD = 0;
+  for (let d=1; d<=dim; d++){ const dt = new Date(y,m,d); if (dt >= today){ const p = priceFor(y,m,d); if (p < min){ min = p; minD = d; } } }
+
+  let html = '';
+  for (let i=0;i<off;i++) html += '<div></div>';
+  for (let d=1; d<=dim; d++){
+    const dt = new Date(y,m,d), t = dt.getTime(), wd = dt.getDay(), past = dt < today;
+    const cheap = !past && d === minD;
+    const inR = inRoute.has(t), btw = between.has(t);
+    const cls = ['cal-day', (wd===0||wd===6)?'weekend':'', past?'disabled':'',
+      inR?'selected inroute':(btw?'between':''),
+      dt.getTime()===today.getTime()&&!inR&&!btw?'today':'', cheap?'cheap':''].join(' ');
+    html += `<div class="${cls}" data-day="${d}" data-cheap="${cheap?1:0}" ${past?'':'data-active="1"'}>
+      <span class="d">${d}</span><span class="p">${past?'—':money(priceFor(y,m,d))}</span></div>`;
+  }
+  const g = document.getElementById('calGrid');
+  g.innerHTML = html;
+  g.querySelectorAll('[data-active]').forEach(c => c.addEventListener('click', () => {
+    applyDate(calRow, new Date(y,m,+c.dataset.day), priceFor(y,m,+c.dataset.day), c.dataset.cheap === '1');
+    closeCal();
+  }));
+}
+document.getElementById('calPrev').onclick = e => { e.stopPropagation(); calView.setMonth(calView.getMonth()-1); drawCal(); };
+document.getElementById('calNext').onclick = e => { e.stopPropagation(); calView.setMonth(calView.getMonth()+1); drawCal(); };
+function closeCal(){ cal.classList.add('hidden'); calRow = null; }
+document.addEventListener('pointerdown', e => {
+  if (!cal.classList.contains('hidden') && !cal.contains(e.target) && !e.target.closest('.date-btn')) closeCal();
+  if (!e.target.closest('.leg-row')){
+    closePanels();
+    document.querySelectorAll('.leg-row.touched').forEach(r => r.classList.remove('touched'));
+  }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeCal(); closePanels(); } });
+
+/* ================= навигация ================= */
+const scrSearch = document.getElementById('scrSearch'), scrThanks = document.getElementById('scrThanks');
+document.querySelector('[data-back]').addEventListener('click', () => {
+  scrThanks.classList.add('off-r'); scrSearch.classList.remove('off-r');
+  closeCal(); closePanels();
+});
+
+/* ================= поиск → экран «спасибо» ================= */
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const any = [...legsEl.children].some(filled);
+  if (!any) return toast('Выберите «Откуда» и «Куда»', '⚠');
+  scrSearch.classList.add('off-r'); scrThanks.classList.remove('off-r');
+  scrThanks.scrollTop = 0;
+});
+
+/* ================= старт: все поля пустые ================= */
+createLeg();
+refresh();
+</script>
+</body>
+</html>
